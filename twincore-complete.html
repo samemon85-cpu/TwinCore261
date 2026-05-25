@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TwinCore — Digital Twin Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+/* ── RESET & TOKENS ─────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#04070F;--surface:#080D1A;--surface2:#0C1220;--surface3:#101826;
+  --border:#162030;--border2:#1E3048;--border3:#243850;
+  --accent:#00D4FF;--accent2:#0098CC;--accentglow:rgba(0,212,255,.12);
+  --warm:#FF5A28;--green:#00E87C;--yellow:#FFB800;--red:#FF2D55;--purple:#9B6DFF;--teal:#00D4B0;
+  --text:#D8EEFF;--muted:#4A6A88;--dim:#1E3450;
+  --font:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;
+  --r:8px;--rl:12px;--rxl:18px;
+}
+html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px}
+button{cursor:pointer;font-family:var(--font)}
+input,select{font-family:var(--font)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── LAYOUT ─────────────────────────────────────────────────────────── */
+#app{display:grid;grid-template-rows:54px 1fr;height:100vh}
+#header{background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 20px;position:relative;z-index:100}
+#body{display:grid;grid-template-columns:220px 1fr;overflow:hidden}
+#sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#main{overflow-y:auto;padding:24px}
+.page{display:none;animation:fadeUp .3s ease}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── HEADER ─────────────────────────────────────────────────────────── */
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--warm));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.logo-name{font-size:15px;font-weight:700;letter-spacing:.5px;font-family:var(--mono)}
+.logo-sub{font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--dim)}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.alert-badge{display:flex;align-items:center;gap:5px;background:rgba(255,45,85,.12);border:1px solid rgba(255,45,85,.25);border-radius:6px;padding:3px 10px;font-size:10px;font-family:var(--mono);color:var(--red)}
+.alert-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:pulse 1s infinite}
+.hdr-time{font-size:11px;font-family:var(--mono);color:var(--muted)}
+.user-pill{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer}
+.user-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--bg)}
+.user-name{font-size:11px;color:var(--muted)}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────────────── */
+.sidebar-section{padding:16px 12px 8px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:var(--r);margin:1px 8px;cursor:pointer;color:var(--muted);font-size:12px;font-weight:500;transition:all .15s;position:relative}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.2)}
+.nav-item .nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;font-family:var(--mono)}
+.nav-badge.yellow{background:var(--yellow);color:#000}
+.sidebar-bottom{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
+.bim-upload-btn{width:100%;background:linear-gradient(135deg,rgba(0,212,255,.15),rgba(0,212,255,.05));border:1px dashed rgba(0,212,255,.4);border-radius:var(--r);padding:10px;text-align:center;cursor:pointer;color:var(--accent);font-size:11px;font-family:var(--mono);transition:all .2s}
+.bim-upload-btn:hover{background:rgba(0,212,255,.2);border-style:solid}
+#bim-file-input{display:none}
+.bim-status{font-size:9px;color:var(--muted);text-align:center;margin-top:6px;font-family:var(--mono)}
+
+/* ── CARDS ─────────────────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px}
+.card-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.card-title span{font-size:10px;color:var(--muted);font-weight:400}
+
+/* ── KPI GRID ─────────────────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-color)}
+.kpi-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.kpi-value{font-size:26px;font-weight:700;font-family:var(--mono);color:var(--text);line-height:1}
+.kpi-unit{font-size:11px;color:var(--muted);margin-left:3px}
+.kpi-delta{font-size:10px;margin-top:4px}
+
+/* ── STATUS BADGES ─────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:4px;padding:2px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.badge-op{background:rgba(0,232,124,.12);color:var(--green);border:1px solid rgba(0,232,124,.2)}
+.badge-warn{background:rgba(255,184,0,.12);color:var(--yellow);border:1px solid rgba(255,184,0,.2)}
+.badge-crit{background:rgba(255,45,85,.12);color:var(--red);border:1px solid rgba(255,45,85,.2)}
+.badge-stby{background:rgba(74,106,136,.12);color:var(--muted);border:1px solid rgba(74,106,136,.2)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* ── TABLE ─────────────────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--surface2)}
+th{padding:8px 12px;text-align:left;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);font-weight:600;white-space:nowrap}
+td{padding:9px 12px;font-size:12px;border-top:1px solid var(--border)}
+tr.clickable{cursor:pointer;transition:background .15s}
+tr.clickable:hover td{background:var(--surface2)}
+.health-bar-wrap{display:flex;align-items:center;gap:8px}
+.health-bar{flex:1;height:3px;background:var(--border);border-radius:2px}
+.health-fill{height:100%;border-radius:2px;transition:width .5s}
+.mono{font-family:var(--mono)}
+
+/* ── BIM FLOOR PLAN ─────────────────────────────────────────────────── */
+.floor-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.floor-tab{background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:10px;font-family:var(--mono);font-weight:600;cursor:pointer;transition:all .15s}
+.floor-tab.active{background:rgba(0,212,255,.15);border-color:var(--accent);color:var(--accent)}
+.bim-canvas-wrap{position:relative;width:100%;padding-bottom:52%;background:var(--bg);border-radius:var(--r);overflow:hidden;border:1px solid var(--border)}
+.bim-svg{position:absolute;inset:0;width:100%;height:100%}
+.asset-hotspot{position:absolute;transform:translate(-50%,-50%);background:rgba(0,212,255,.15);border:1.5px solid var(--accent);border-radius:5px;padding:3px 7px;cursor:pointer;font-size:9px;font-family:var(--mono);font-weight:700;color:var(--accent);transition:all .2s;z-index:2;white-space:nowrap}
+.asset-hotspot:hover,.asset-hotspot.sel{background:var(--accent);color:var(--bg)}
+.asset-hotspot.warn{border-color:var(--yellow);color:var(--yellow)}
+.asset-hotspot.warn:hover,.asset-hotspot.warn.sel{background:var(--yellow);color:#000}
+.asset-hotspot.crit{border-color:var(--red);color:var(--red);animation:pulse 1.2s infinite}
+.asset-hotspot.crit:hover,.asset-hotspot.crit.sel{background:var(--red);color:#fff;animation:none}
+.asset-hotspot.stby{border-color:var(--muted);color:var(--muted)}
+
+/* ── ASSET DETAIL PANEL ─────────────────────────────────────────────── */
+#asset-panel{position:fixed;top:54px;right:0;bottom:0;width:320px;background:var(--surface);border-left:1px solid var(--border);z-index:200;transform:translateX(100%);transition:transform .3s ease;overflow-y:auto;padding:20px}
+#asset-panel.open{transform:translateX(0)}
+.panel-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer}
+.panel-header{margin-bottom:16px;padding-right:30px}
+.panel-name{font-size:18px;font-weight:700;color:var(--text);margin-bottom:2px}
+.panel-sub{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.panel-field{background:var(--bg);border-radius:var(--r);padding:8px 10px}
+.panel-field-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:3px}
+.panel-field-value{font-size:12px;font-family:var(--mono);color:var(--text)}
+.health-big{margin-bottom:12px}
+.health-big-top{display:flex;justify-content:space-between;margin-bottom:6px}
+.health-big-bar{height:6px;background:var(--border);border-radius:3px}
+.health-big-fill{height:100%;border-radius:3px;transition:width .8s}
+.sensor-row{background:var(--bg);border-radius:var(--r);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sensor-label{font-size:10px;color:var(--muted)}
+.sensor-value{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--accent)}
+.rul-bar-wrap{margin-bottom:14px}
+
+/* ── ENERGY CHARTS ─────────────────────────────────────────────────── */
+.chart-container{height:120px;position:relative;margin-bottom:6px}
+.bar-chart{display:flex;align-items:flex-end;gap:3px;height:100%;padding:0 2px}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%}
+.bar{width:100%;border-radius:2px 2px 0 0;transition:height .5s,background .3s;cursor:pointer}
+.bar:hover{filter:brightness(1.3)}
+.bar-label{font-size:8px;color:var(--dim);font-family:var(--mono);white-space:nowrap}
+.metric-tabs{display:flex;gap:6px;margin-bottom:12px}
+.metric-tab{background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:4px 10px;font-size:10px;font-family:var(--mono);cursor:pointer;transition:all .15s}
+.metric-tab.active{background:rgba(0,212,255,.15);border-color:var(--accent);color:var(--accent)}
+
+/* ── WORK ORDERS ────────────────────────────────────────────────────── */
+.wo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;cursor:pointer;transition:border-color .15s}
+.wo-card:hover{border-color:var(--border2)}
+.wo-id{font-size:9px;font-family:var(--mono);color:var(--dim);margin-bottom:4px}
+.wo-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.wo-meta{font-size:10px;color:var(--muted)}
+.priority-urgent{color:var(--red)}
+.priority-high{color:var(--yellow)}
+.priority-normal{color:var(--accent)}
+.priority-low{color:var(--muted)}
+.wo-filter-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.wo-filter{background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:4px 10px;font-size:10px;cursor:pointer;transition:all .15s}
+.wo-filter.active{background:rgba(0,212,255,.15);border-color:var(--accent);color:var(--accent)}
+
+/* ── IoT ALERTS ─────────────────────────────────────────────────────── */
+.rule-row{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.rule-row:last-child{border-bottom:none}
+.toggle{width:36px;height:20px;background:var(--border2);border-radius:10px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--green)}
+.toggle-knob{position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s}
+.toggle.on .toggle-knob{left:18px}
+.triggered-dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1s infinite;flex-shrink:0}
+.sensor-live-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.sensor-live-card{background:var(--bg);border-radius:var(--r);padding:10px 12px;border-left:2px solid var(--border2)}
+
+/* ── ML MODULE ──────────────────────────────────────────────────────── */
+.slider-row{margin-bottom:12px}
+.slider-row-top{display:flex;justify-content:space-between;margin-bottom:5px;font-size:11px}
+.slider-row input[type=range]{width:100%;accent-color:var(--accent)}
+.ml-result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.ml-result-card{background:var(--bg);border-radius:var(--r);padding:12px 14px}
+.ml-result-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:4px}
+.ml-result-value{font-size:22px;font-weight:700;font-family:var(--mono)}
+.ml-result-sub{font-size:9px;color:var(--dim);margin-top:2px}
+.ml-run-btn{width:100%;background:var(--accent);border:none;border-radius:var(--r);padding:11px;color:var(--bg);font-size:13px;font-weight:700;transition:opacity .2s;margin-top:10px}
+.ml-run-btn:hover{opacity:.85}
+.ml-run-btn:disabled{opacity:.4;cursor:not-allowed}
+.anomaly-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--red);margin-bottom:4px}
+
+/* ── 3D VIEWER ──────────────────────────────────────────────────────── */
+#viewer-canvas{width:100%;display:block;border-radius:var(--r);cursor:grab;background:var(--bg);border:1px solid var(--border)}
+#viewer-canvas:active{cursor:grabbing}
+.viewer-controls{display:flex;gap:6px;margin-bottom:10px}
+.viewer-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:5px 12px;font-size:10px;font-family:var(--mono);cursor:pointer;transition:all .15s}
+.viewer-btn:hover{border-color:var(--accent);color:var(--accent)}
+.viewer-info{font-size:10px;color:var(--muted);text-align:center;margin-top:6px;font-family:var(--mono)}
+.bim-file-panel{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rl);padding:20px;text-align:center;margin-bottom:16px}
+.bim-file-icon{font-size:40px;margin-bottom:10px}
+.bim-file-drop{border:2px dashed var(--border2);border-radius:var(--r);padding:24px;cursor:pointer;transition:all .2s;margin-bottom:12px}
+.bim-file-drop:hover,.bim-file-drop.dragover{border-color:var(--accent);background:rgba(0,212,255,.05)}
+.bim-file-types{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.bim-type-badge{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 10px;font-size:10px;font-family:var(--mono);color:var(--muted)}
+.bim-type-badge.supported{border-color:rgba(0,212,255,.3);color:var(--accent);background:rgba(0,212,255,.08)}
+
+/* ── EXECUTIVE ──────────────────────────────────────────────────────── */
+.exec-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.forecast-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.forecast-item:last-child{border-bottom:none}
+.forecast-name{font-size:12px;font-weight:600;flex:1}
+.forecast-when{font-size:10px;font-family:var(--mono)}
+.spend-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.spend-month{font-size:10px;font-family:var(--mono);color:var(--muted);width:24px}
+.spend-bar-bg{flex:1;height:16px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.spend-bar-fill{height:100%;background:rgba(255,90,40,.6);border-radius:3px}
+.spend-val{font-size:10px;font-family:var(--mono);color:var(--warm);width:36px;text-align:right}
+
+/* ── ARCH ─────────────────────────────────────────────────────────── */
+.arch-layer{border-radius:var(--r);padding:14px 16px;margin-bottom:8px;border-left:3px solid var(--layer-color)}
+.arch-layer-title{font-size:11px;font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--layer-color);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.arch-items{display:flex;flex-wrap:wrap;gap:5px}
+.arch-chip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--text);border-radius:4px;padding:2px 10px;font-size:10px;font-family:var(--mono)}
+
+/* ── MODAL OVERLAY ─────────────────────────────────────────────────── */
+#modal-overlay{position:fixed;inset:0;background:rgba(4,7,15,.85);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#modal-overlay.show{display:flex}
+#modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rxl);padding:28px;max-width:420px;width:90%;animation:fadeUp .2s ease}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.modal-sub{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+.modal-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--mono);outline:none;margin-bottom:10px}
+.modal-input:focus{border-color:var(--accent)}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.role-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:10px;cursor:pointer;transition:all .15s}
+.role-card:hover,.role-card.sel{border-color:var(--accent);background:rgba(0,212,255,.08)}
+.role-card .role-icon{font-size:18px;margin-bottom:4px}
+.role-card .role-name{font-size:11px;font-weight:600;color:var(--text)}
+.role-card.sel .role-name{color:var(--accent)}
+.login-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--r);padding:12px;color:var(--bg);font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s}
+.login-btn:hover{opacity:.85}
+</style>
+</head>
+<body>
+
+<!-- LOGIN MODAL -->
+<div id="modal-overlay" class="show">
+  <div id="modal-box">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:48px;height:48px;background:linear-gradient(135deg,#00D4FF,#FF5A28);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 10px">⬡</div>
+      <div class="modal-title">TwinCore Platform</div>
+      <div class="modal-sub">Sign in to access your digital twin dashboard</div>
+    </div>
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);margin-bottom:8px">Sign in as</div>
+    <div class="role-grid" id="role-grid">
+      <div class="role-card sel" data-role="manager" onclick="selRole(this)"><div class="role-icon">🏢</div><div class="role-name">Facility Manager</div></div>
+      <div class="role-card" data-role="technician" onclick="selRole(this)"><div class="role-icon">🔧</div><div class="role-name">Maintenance Tech</div></div>
+      <div class="role-card" data-role="iot" onclick="selRole(this)"><div class="role-icon">⚡</div><div class="role-name">IoT Engineer</div></div>
+      <div class="role-card" data-role="executive" onclick="selRole(this)"><div class="role-icon">📊</div><div class="role-name">Executive</div></div>
+    </div>
+    <input class="modal-input" type="email" value="admin@twincore.io" placeholder="Email"/>
+    <input class="modal-input" type="password" value="Admin1234!" placeholder="Password"/>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div style="font-size:10px;color:var(--dim);text-align:center;margin-top:12px">v2.1.0 · BIM-Linked Digital Twin · Demo Mode</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- HEADER -->
+  <div id="header">
+    <div class="logo">
+      <div class="logo-icon">⬡</div>
+      <div><div class="logo-name">TWINCORE</div><div class="logo-sub">Digital Twin Platform</div></div>
+    </div>
+    <div class="hdr-right">
+      <div class="alert-badge"><div class="alert-dot"></div><span>1 CRITICAL</span></div>
+      <div class="hdr-time" id="clock">--:--:--</div>
+      <div class="user-pill" id="user-pill" onclick="showLogout()">
+        <div class="user-avatar" id="user-avatar">MS</div>
+        <div class="user-name" id="user-label">Facility Manager</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="body">
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sidebar-section">Main</div>
+      <div class="nav-item active" data-page="dashboard" onclick="navTo('dashboard',this)"><span class="nav-icon">⬡</span> BIM Viewer</div>
+      <div class="nav-item" data-page="viewer3d" onclick="navTo('viewer3d',this)"><span class="nav-icon">◈</span> 3D Viewer</div>
+      <div class="nav-item" data-page="energy" onclick="navTo('energy',this)"><span class="nav-icon">⚡</span> Energy</div>
+      <div class="nav-item" data-page="workorders" onclick="navTo('workorders',this)"><span class="nav-icon">⊡</span> Work Orders <span class="nav-badge">4</span></div>
+
+      <div class="sidebar-section">Intelligence</div>
+      <div class="nav-item" data-page="iot" onclick="navTo('iot',this)"><span class="nav-icon">📡</span> IoT Alerts <span class="nav-badge yellow">2</span></div>
+      <div class="nav-item" data-page="ml" onclick="navTo('ml',this)"><span class="nav-icon">∑</span> ML Predictions</div>
+      <div class="nav-item" data-page="executive" onclick="navTo('executive',this)"><span class="nav-icon">📊</span> Executive</div>
+
+      <div class="sidebar-section">System</div>
+      <div class="nav-item" data-page="users" onclick="navTo('users',this)"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-item" data-page="arch" onclick="navTo('arch',this)"><span class="nav-icon">⊛</span> Architecture</div>
+
+      <div class="sidebar-bottom">
+        <label class="bim-upload-btn" for="bim-file-input">
+          ⬆ Load BIM File
+        </label>
+        <input type="file" id="bim-file-input" accept=".rvt,.ifc,.nwd,.nwc,.obj,.glb,.gltf,.json" onchange="loadBIMFile(this)"/>
+        <div class="bim-status" id="bim-status">Supported: RVT · IFC · NWD · OBJ · GLB</div>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main">
+
+<!-- ══ PAGE: DASHBOARD / BIM VIEWER ══════════════════════════════════════ -->
+<div id="page-dashboard" class="page active">
+  <div class="kpi-grid">
+    <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-label">Operational</div><div><span class="kpi-value">7</span><span class="kpi-unit">assets</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--yellow)"><div class="kpi-label">Warnings</div><div><span class="kpi-value">2</span><span class="kpi-unit">assets</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--red)"><div class="kpi-label">Critical</div><div><span class="kpi-value">1</span><span class="kpi-unit">assets</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--warm)"><div class="kpi-label">Open WOs</div><div><span class="kpi-value">4</span><span class="kpi-unit">orders</span></div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">BIM Floor Plan <span>Tap an asset to inspect</span></div>
+    <div class="floor-tabs" id="floor-tabs"></div>
+    <div class="bim-canvas-wrap" id="bim-canvas-wrap">
+      <svg class="bim-svg" viewBox="0 0 100 52" preserveAspectRatio="none">
+        <defs><pattern id="grid" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M5 0L0 0 0 5" fill="none" stroke="#162030" stroke-width=".2"/></pattern></defs>
+        <rect width="100" height="52" fill="url(#grid)"/>
+        <rect x="6" y="5" width="88" height="42" fill="none" stroke="#1E3048" stroke-width=".4" stroke-dasharray="1.5,.8"/>
+        <rect x="8" y="7" width="36" height="22" fill="rgba(0,212,255,.03)" stroke="#1E3048" stroke-width=".25"/>
+        <rect x="46" y="7" width="46" height="14" fill="rgba(255,90,40,.03)" stroke="#1E3048" stroke-width=".25"/>
+        <rect x="8" y="31" width="24" height="14" fill="rgba(0,232,124,.03)" stroke="#1E3048" stroke-width=".25"/>
+        <rect x="34" y="22" width="58" height="23" fill="rgba(0,212,255,.02)" stroke="#1E3048" stroke-width=".25"/>
+        <text x="12" y="12" font-size="2.2" fill="#1E3450" font-family="monospace">MECHANICAL</text>
+        <text x="52" y="12" font-size="2.2" fill="#1E3450" font-family="monospace">OFFICE A</text>
+        <text x="10" y="37" font-size="2.2" fill="#1E3450" font-family="monospace">LOBBY</text>
+        <text x="46" y="27" font-size="2.2" fill="#1E3450" font-family="monospace">OPEN PLAN</text>
+        <text x="93" y="9" font-size="2.8" fill="#1E3450" font-family="monospace" text-anchor="middle">N</text>
+        <line x1="93" y1="9.5" x2="93" y2="12" stroke="#1E3450" stroke-width=".4"/>
+        <text x="3" y="4" font-size="2" fill="#1E3450" font-family="monospace" id="floor-label-svg">FL: L1</text>
+      </svg>
+      <div id="hotspots"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Asset Registry <span id="asset-count">10 assets</span></div>
+    <div class="table-wrap">
+      <table id="asset-table">
+        <thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Floor</th><th>Status</th><th>Health</th><th>RUL</th><th>Next PM</th></tr></thead>
+        <tbody id="asset-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: 3D VIEWER ════════════════════════════════════════════════════ -->
+<div id="page-viewer3d" class="page">
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">3D BIM Viewer <span>Drag to rotate · Scroll to zoom · Click asset</span></div>
+    <div class="bim-file-panel" id="bim-drop-zone">
+      <div class="bim-file-icon">📐</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px">Load Your BIM File</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Drag & drop or click to upload your Revit, IFC, or compatible file</div>
+      <div class="bim-file-drop" id="drop-zone-inner" onclick="document.getElementById('bim-file-input').click()">
+        <div style="font-size:12px;color:var(--muted)">Drop file here or <span style="color:var(--accent)">browse</span></div>
+        <div style="font-size:10px;color:var(--dim);margin-top:6px">Max 100MB for browser processing</div>
+      </div>
+      <div class="bim-file-types">
+        <span class="bim-type-badge supported">RVT</span>
+        <span class="bim-type-badge supported">IFC</span>
+        <span class="bim-type-badge supported">NWD</span>
+        <span class="bim-type-badge supported">OBJ</span>
+        <span class="bim-type-badge supported">GLB/GLTF</span>
+        <span class="bim-type-badge">FBX (via converter)</span>
+      </div>
+    </div>
+    <div class="viewer-controls">
+      <button class="viewer-btn" onclick="set3DView(0.4,0.5,1)">Isometric</button>
+      <button class="viewer-btn" onclick="set3DView(1.4,0,1)">Top</button>
+      <button class="viewer-btn" onclick="set3DView(0,0,1)">Front</button>
+      <button class="viewer-btn" onclick="set3DView(0,1.57,1)">Side</button>
+      <button class="viewer-btn" onclick="resetViewer()">Reset</button>
+      <button class="viewer-btn" onclick="toggleWireframe()" id="wire-btn">Wireframe</button>
+    </div>
+    <canvas id="viewer-canvas" height="460"></canvas>
+    <div class="viewer-info" id="viewer-info">Demo model — 9 assets · Drag to rotate · Scroll to zoom · Click to select</div>
+  </div>
+  <div class="card" id="viewer-asset-card" style="display:none">
+    <div class="card-title" id="viewer-asset-name">Asset Detail</div>
+    <div class="panel-grid" id="viewer-asset-grid"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: ENERGY ═══════════════════════════════════════════════════════ -->
+<div id="page-energy" class="page">
+  <div class="kpi-grid">
+    <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">Today's Usage</div><div><span class="kpi-value" id="e-kwh">1,240</span><span class="kpi-unit">kWh</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--yellow)"><div class="kpi-label">Peak Demand</div><div><span class="kpi-value">87.3</span><span class="kpi-unit">kW</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-label">Carbon Output</div><div><span class="kpi-value">42.1</span><span class="kpi-unit">kg CO₂</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">Efficiency Score</div><div><span class="kpi-value">B+</span></div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">24-Hour Sensor Data</div>
+    <div class="metric-tabs">
+      <button class="metric-tab active" onclick="switchMetric('energy',this)">Energy</button>
+      <button class="metric-tab" onclick="switchMetric('temp',this)">Temperature</button>
+      <button class="metric-tab" onclick="switchMetric('occ',this)">Occupancy</button>
+      <button class="metric-tab" onclick="switchMetric('co2',this)">CO₂</button>
+    </div>
+    <div class="chart-container"><div class="bar-chart" id="energy-chart"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--dim);font-family:var(--mono)">
+      <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="card">
+      <div class="card-title">Energy by System</div>
+      <div id="energy-breakdown"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">This Week vs Last</div>
+      <div id="weekly-compare"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: WORK ORDERS ══════════════════════════════════════════════════ -->
+<div id="page-workorders" class="page">
+  <div class="wo-filter-bar" id="wo-filters"></div>
+  <div id="wo-list"></div>
+</div>
+
+<!-- ══ PAGE: IoT ALERTS ═══════════════════════════════════════════════════ -->
+<div id="page-iot" class="page">
+  <div class="kpi-grid">
+    <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">Active Rules</div><div><span class="kpi-value">5</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--red)"><div class="kpi-label">Triggered</div><div><span class="kpi-value">2</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-label">Sensors Online</div><div><span class="kpi-value">24</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--yellow)"><div class="kpi-label">Last Event</div><div style="font-size:12px;font-family:var(--mono);color:var(--text);margin-top:4px">2 min ago</div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Alert Rules Engine</div>
+    <div id="rules-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Live Sensor Feed</div>
+    <div class="sensor-live-grid" id="sensor-live-grid"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: ML PREDICTIONS ═══════════════════════════════════════════════ -->
+<div id="page-ml" class="page">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div class="card-title">Inference Engine</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Asset: <span style="color:var(--accent);font-family:var(--mono)" id="ml-asset-name">PUMP-02</span></div>
+      <div class="slider-row"><div class="slider-row-top"><span style="color:var(--muted)">Vibration (g-rms)</span><span style="color:var(--accent);font-family:var(--mono)" id="v-vib">3.8</span></div><input type="range" min="0" max="8" step="0.1" value="3.8" oninput="updateSlider('vib',this.value)"></div>
+      <div class="slider-row"><div class="slider-row-top"><span style="color:var(--muted)">Temperature (°C)</span><span style="color:var(--accent);font-family:var(--mono)" id="v-temp">62</span></div><input type="range" min="20" max="100" step="1" value="62" oninput="updateSlider('temp',this.value)"></div>
+      <div class="slider-row"><div class="slider-row-top"><span style="color:var(--muted)">Runtime (hrs)</span><span style="color:var(--accent);font-family:var(--mono)" id="v-runtime">18400</span></div><input type="range" min="0" max="30000" step="100" value="18400" oninput="updateSlider('runtime',this.value)"></div>
+      <div class="slider-row"><div class="slider-row-top"><span style="color:var(--muted)">Current Draw (A)</span><span style="color:var(--accent);font-family:var(--mono)" id="v-current">8.4</span></div><input type="range" min="0" max="20" step="0.1" value="8.4" oninput="updateSlider('current',this.value)"></div>
+      <div class="slider-row"><div class="slider-row-top"><span style="color:var(--muted)">Acoustic (dB)</span><span style="color:var(--accent);font-family:var(--mono)" id="v-noise">74</span></div><input type="range" min="40" max="100" step="1" value="74" oninput="updateSlider('noise',this.value)"></div>
+      <button class="ml-run-btn" id="ml-run-btn" onclick="runML()">▶ Run Prediction</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Prediction Output</div>
+      <div id="ml-output" style="color:var(--muted);font-size:12px;text-align:center;padding:40px 0">Configure inputs and run inference →</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">RUL Timeline — All Assets</div>
+    <div id="rul-timeline"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: EXECUTIVE ════════════════════════════════════════════════════ -->
+<div id="page-executive" class="page">
+  <div class="kpi-grid">
+    <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">Asset Portfolio</div><div><span class="kpi-value">10</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-label">Avg Health</div><div><span class="kpi-value">81</span><span class="kpi-unit">%</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--warm)"><div class="kpi-label">Monthly Spend</div><div><span class="kpi-value">$14K</span></div></div>
+    <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">Savings YTD</div><div><span class="kpi-value">$84K</span></div></div>
+  </div>
+  <div class="exec-grid">
+    <div class="card">
+      <div class="card-title">Health Distribution</div>
+      <div id="health-dist"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Maintenance Spend YTD</div>
+      <div id="spend-chart"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Predictive Maintenance Forecast</div>
+    <div id="pm-forecast"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: USERS ════════════════════════════════════════════════════════ -->
+<div id="page-users" class="page">
+  <div class="card">
+    <div class="card-title">Platform Users</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Floors</th><th>Last Login</th><th>Status</th></tr></thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: ARCHITECTURE ═════════════════════════════════════════════════ -->
+<div id="page-arch" class="page">
+  <div class="card">
+    <div class="card-title">System Architecture</div>
+    <div style="color:var(--muted);font-size:12px;margin-bottom:16px;line-height:1.7">5-layer platform from IoT edge through BIM engine to the presentation layer. Each layer communicates via async events and REST/GraphQL APIs.</div>
+    <div id="arch-layers"></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Recommended Tech Stack</div>
+    <div id="tech-stack"></div>
+  </div>
+</div>
+
+    </div><!-- /main -->
+  </div><!-- /body -->
+</div><!-- /app -->
+
+<!-- ASSET DETAIL PANEL -->
+<div id="asset-panel">
+  <button class="panel-close" onclick="closePanel()">✕</button>
+  <div class="panel-header">
+    <div class="panel-name" id="panel-name">—</div>
+    <div class="panel-sub" id="panel-sub">—</div>
+  </div>
+  <div id="panel-badge-wrap" style="margin-bottom:14px"></div>
+  <div class="panel-grid" id="panel-grid"></div>
+  <div class="health-big">
+    <div class="health-big-top"><span style="font-size:11px;color:var(--muted)">Health Score</span><span id="panel-health-val" style="font-family:var(--mono);font-weight:700"></span></div>
+    <div class="health-big-bar"><div class="health-big-fill" id="panel-health-fill"></div></div>
+  </div>
+  <div id="panel-sensors"></div>
+  <div id="panel-rul-wrap" style="margin-bottom:12px"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// MOCK DATA
+// ═══════════════════════════════════════════════════════════════════════
+const FLOORS=['RF','L5','L4','L3','L2','L1','GF','B1','B2'];
+const FLOOR_LABEL={RF:'Roof',L5:'Level 5',L4:'Level 4',L3:'Level 3',L2:'Level 2',L1:'Level 1',GF:'Ground Floor',B1:'Basement 1',B2:'Basement 2'};
+
+const ASSETS=[
+  {id:'A001',name:'AHU-01',type:'HVAC',floor:'L1',x:16,y:24,status:'operational',health:94,rul:2847,temp:18.2,pm:'2026-07-12',brand:'Carrier',model:'39HQ',yr:2020,pos:[0,1.2,0]},
+  {id:'A002',name:'ELEV-01',type:'Elevator',floor:'GF',x:48,y:54,status:'warning',health:67,rul:892,temp:null,pm:'2026-05-30',brand:'Otis',model:'Gen2',yr:2018,pos:[2,0,0]},
+  {id:'A003',name:'CHILLER-01',type:'Cooling',floor:'B1',x:28,y:42,status:'operational',health:88,rul:5210,temp:6.5,pm:'2026-06-20',brand:'Trane',model:'CGAX180',yr:2019,pos:[-2,-.8,1]},
+  {id:'A004',name:'PUMP-02',type:'Plumbing',floor:'B1',x:63,y:37,status:'critical',health:31,rul:124,temp:null,pm:'OVERDUE',brand:'Grundfos',model:'CM5-5',yr:2017,pos:[1,-.8,-1]},
+  {id:'A005',name:'FCU-L2-04',type:'HVAC',floor:'L2',x:71,y:26,status:'operational',health:99,rul:8930,temp:21.0,pm:'2026-08-01',brand:'Daikin',model:'FWB100',yr:2023,pos:[-1,0.8,1]},
+  {id:'A006',name:'GEN-01',type:'Power',floor:'B2',x:78,y:62,status:'standby',health:100,rul:null,temp:null,pm:'2026-07-15',brand:'Cummins',model:'C150D5',yr:2021,pos:[2.5,-.8,0]},
+  {id:'A007',name:'FIRE-SYS',type:'Safety',floor:'L1',x:55,y:17,status:'operational',health:100,rul:null,temp:null,pm:'2026-10-30',brand:'Notifier',model:'NFS2-640',yr:2020,pos:[0,1.2,2]},
+  {id:'A008',name:'BMS-CTRL',type:'Controls',floor:'L3',x:34,y:68,status:'operational',health:82,rul:3400,temp:null,pm:'2026-09-01',brand:'Siemens',model:'Desigo CC',yr:2022,pos:[-1.5,2,0]},
+  {id:'A009',name:'FCU-L3-02',type:'HVAC',floor:'L3',x:22,y:42,status:'warning',health:58,rul:610,temp:23.8,pm:'2026-05-28',brand:'Daikin',model:'FWB080',yr:2019,pos:[0.5,2,1.5]},
+  {id:'A010',name:'TRANS-01',type:'Power',floor:'B2',x:40,y:72,status:'operational',health:91,rul:9200,temp:null,pm:'2026-11-01',brand:'ABB',model:'RESIBLOC',yr:2021,pos:[-2.5,-.8,.5]},
+];
+
+const WORK_ORDERS=[
+  {id:'WO-2847',asset:'PUMP-02',title:'Bearing replacement — urgent failure risk',priority:'urgent',status:'open',assigned:'J. Santos',due:'2026-05-24',est:4},
+  {id:'WO-2831',asset:'ELEV-01',title:'Annual safety inspection',priority:'high',status:'in-progress',assigned:'T. Reyes',due:'2026-05-30',est:8},
+  {id:'WO-2819',asset:'AHU-01',title:'Q2 filter replacement',priority:'normal',status:'scheduled',assigned:'M. Cruz',due:'2026-06-10',est:2},
+  {id:'WO-2810',asset:'FCU-L3-02',title:'Coil cleaning & performance check',priority:'high',status:'open',assigned:'T. Reyes',due:'2026-05-27',est:3},
+  {id:'WO-2801',asset:'BMS-CTRL',title:'Firmware upgrade to v4.2.1',priority:'low',status:'scheduled',assigned:'L. Tan',due:'2026-06-15',est:6},
+  {id:'WO-2798',asset:'CHILLER-01',title:'Refrigerant level check',priority:'normal',status:'completed',assigned:'J. Santos',due:'2026-05-20',est:2},
+];
+
+const ALERT_RULES=[
+  {id:'R001',name:'Low Health Score',asset:'ANY',metric:'health',op:'<',threshold:40,severity:'urgent',active:true,triggered:true},
+  {id:'R002',name:'Critical RUL',asset:'ANY',metric:'rul',op:'<',threshold:200,severity:'urgent',active:true,triggered:true},
+  {id:'R003',name:'High Supply Temp',asset:'AHU-01',metric:'temp',op:'>',threshold:26,severity:'high',active:true,triggered:false},
+  {id:'R004',name:'Energy Spike',asset:'Building',metric:'energy',op:'>',threshold:95,severity:'normal',active:false,triggered:false},
+  {id:'R005',name:'High Occupancy',asset:'Building',metric:'occupancy',op:'>',threshold:85,severity:'low',active:true,triggered:false},
+  {id:'R006',name:'FCU-L3-02 Over-Temp',asset:'FCU-L3-02',metric:'temp',op:'>',threshold:23,severity:'high',active:true,triggered:true},
+];
+
+const SENSOR_24H=Array.from({length:24},(_,i)=>({
+  h:String(i).padStart(2,'0'),
+  energy:+(45+Math.sin(i*.3+1)*20+(i>8&&i<18?32:0)+Math.random()*4).toFixed(1),
+  temp:+(20+Math.sin(i*.4)*3+(i>9&&i<19?2:0)+Math.random()*.4).toFixed(1),
+  occ:i>=8&&i<=19?Math.round(40+Math.sin((i-8)*.5)*38):Math.round(Math.random()*6),
+  co2:Math.round(400+(i>=8&&i<=18?250*Math.sin((i-8)*.35):20)+Math.random()*30),
+}));
+
+const USERS=[
+  {name:'Maria Santos',email:'m.santos@twincore.io',role:'manager',floors:'All',last:'2026-05-25 09:12',active:true,av:'MS'},
+  {name:'Tom Reyes',email:'t.reyes@twincore.io',role:'technician',floors:'B1,B2,GF,L1',last:'2026-05-25 08:45',active:true,av:'TR'},
+  {name:'Linda Tan',email:'l.tan@twincore.io',role:'iot',floors:'All',last:'2026-05-24 17:30',active:true,av:'LT'},
+  {name:'David Kim',email:'d.kim@twincore.io',role:'executive',floors:'All',last:'2026-05-23 14:00',active:true,av:'DK'},
+  {name:'James Wu',email:'j.wu@twincore.io',role:'tenant',floors:'L4,L5',last:'2026-05-25 08:00',active:true,av:'JW'},
+];
+
+const ROLE_COLORS={manager:'#00D4FF',technician:'#FF5A28',iot:'#FFB800',executive:'#9B6DFF',tenant:'#00E87C'};
+
+// ═══════════════════════════════════════════════════════════════════════
+// GLOBALS
+// ═══════════════════════════════════════════════════════════════════════
+let currentFloor='L1';
+let currentMetric='energy';
+let woFilter='all';
+let mlVals={vib:3.8,temp:62,runtime:18400,current:8.4,noise:74};
+let currentRole='manager';
+let wireframe=false;
+let viewer={rotX:.4,rotY:.5,zoom:1,dragging:false,lx:0,ly:0,frame:0,hovered:null,selected:null};
+let animFrame=null;
+
+// ═══════════════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════════════
+function selRole(el){
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function doLogin(){
+  const sel=document.querySelector('.role-card.sel');
+  currentRole=sel?sel.dataset.role:'manager';
+  document.getElementById('user-label').textContent=sel?sel.querySelector('.role-name').textContent:'Facility Manager';
+  const av={manager:'MS',technician:'TR',iot:'LT',executive:'DK',tenant:'JW'}[currentRole]||'TC';
+  document.getElementById('user-avatar').textContent=av;
+  document.getElementById('modal-overlay').classList.remove('show');
+  initApp();
+}
+function showLogout(){
+  if(confirm('Sign out?')){
+    document.getElementById('modal-overlay').classList.add('show');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════
+function navTo(page,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  el.classList.add('active');
+  if(page==='viewer3d') startViewer();
+  if(page==='energy') renderEnergyChart();
+  if(page==='iot') renderSensorLive();
+  if(page==='ml') renderRULTimeline();
+  if(page==='executive') renderExecutive();
+  if(page==='users') renderUsers();
+  if(page==='arch') renderArch();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════════════
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString();}
+setInterval(tick,1000);tick();
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT APP
+// ═══════════════════════════════════════════════════════════════════════
+function initApp(){
+  renderFloorTabs();
+  renderHotspots();
+  renderAssetTable();
+  renderWorkOrders();
+  renderAlertRules();
+  renderEnergyBreakdown();
+  renderWeeklyCompare();
+  renderEnergyChart();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FLOOR PLAN
+// ═══════════════════════════════════════════════════════════════════════
+function renderFloorTabs(){
+  const c=document.getElementById('floor-tabs');
+  c.innerHTML=FLOORS.map(f=>`<button class="floor-tab${f===currentFloor?' active':''}" onclick="switchFloor('${f}',this)">${f} <span style="opacity:.6;font-size:9px">${FLOOR_LABEL[f].split(' ')[0]}</span></button>`).join('');
+}
+
+function switchFloor(f,btn){
+  currentFloor=f;
+  document.querySelectorAll('.floor-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('floor-label-svg').textContent='FL: '+f;
+  renderHotspots();
+}
+
+function renderHotspots(){
+  const wrap=document.getElementById('hotspots');
+  const floorAssets=ASSETS.filter(a=>a.floor===currentFloor);
+  wrap.innerHTML=floorAssets.map(a=>{
+    const cls=a.status==='critical'?' crit':a.status==='warning'?' warn':a.status==='standby'?' stby':'';
+    const icons={HVAC:'◈',Elevator:'⊡',Cooling:'❄',Plumbing:'⊙',Power:'⚡',Safety:'⊛',Controls:'⬡'};
+    return`<div class="asset-hotspot${cls}" style="left:${a.x}%;top:${a.y}%" onclick="showAsset('${a.id}')">${icons[a.type]||'●'} ${a.name}</div>`;
+  }).join('');
+  if(!floorAssets.length) wrap.innerHTML='<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--dim);font-family:var(--mono);font-size:11px">No assets on floor '+currentFloor+'</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ASSET TABLE
+// ═══════════════════════════════════════════════════════════════════════
+function renderAssetTable(){
+  const tbody=document.getElementById('asset-tbody');
+  tbody.innerHTML=ASSETS.map(a=>{
+    const hc=a.health>75?'var(--green)':a.health>40?'var(--yellow)':'var(--red)';
+    const badge=badgeHTML(a.status);
+    const rul=a.rul?a.rul.toLocaleString()+'h':'—';
+    return`<tr class="clickable" onclick="showAsset('${a.id}')">
+      <td class="mono" style="color:var(--dim)">${a.id}</td>
+      <td style="font-weight:600">${a.name}</td>
+      <td style="color:var(--muted)">${a.type}</td>
+      <td class="mono" style="color:var(--muted)">${a.floor}</td>
+      <td>${badge}</td>
+      <td style="min-width:100px"><div class="health-bar-wrap"><div class="health-bar"><div class="health-fill" style="width:${a.health}%;background:${hc}"></div></div><span class="mono" style="font-size:10px;color:var(--muted)">${a.health}%</span></div></td>
+      <td class="mono" style="color:${a.rul&&a.rul<500?'var(--red)':a.rul&&a.rul<2000?'var(--yellow)':'var(--muted)'}">${rul}</td>
+      <td class="mono" style="color:${a.pm==='OVERDUE'?'var(--red)':'var(--muted)'};font-size:11px">${a.pm}</td>
+    </tr>`;
+  }).join('');
+}
+
+function badgeHTML(status){
+  const map={operational:'badge-op',warning:'badge-warn',critical:'badge-crit',standby:'badge-stby'};
+  return`<span class="badge ${map[status]||'badge-stby'}"><span class="status-dot"></span>${status}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ASSET PANEL
+// ═══════════════════════════════════════════════════════════════════════
+function showAsset(id){
+  const a=ASSETS.find(x=>x.id===id);if(!a)return;
+  document.getElementById('panel-name').textContent=a.name;
+  document.getElementById('panel-sub').textContent=`${a.type} · ${a.id} · Floor ${a.floor}`;
+  document.getElementById('panel-badge-wrap').innerHTML=badgeHTML(a.status);
+
+  document.getElementById('panel-grid').innerHTML=[
+    ['Brand',a.brand],['Model',a.model],['Installed',a.yr],['Next PM',a.pm],
+    ['Floor',FLOOR_LABEL[a.floor]||a.floor],['Status',a.status.charAt(0).toUpperCase()+a.status.slice(1)]
+  ].map(([k,v])=>`<div class="panel-field"><div class="panel-field-label">${k}</div><div class="panel-field-value" style="color:${k==='Next PM'&&v==='OVERDUE'?'var(--red)':'var(--text)'}">${v}</div></div>`).join('');
+
+  const hc=a.health>75?'var(--green)':a.health>40?'var(--yellow)':'var(--red)';
+  document.getElementById('panel-health-val').textContent=a.health+'%';
+  document.getElementById('panel-health-val').style.color=hc;
+  document.getElementById('panel-health-fill').style.width=a.health+'%';
+  document.getElementById('panel-health-fill').style.background=hc;
+
+  const sensors=[];
+  if(a.temp!==null) sensors.push(['Live Temperature',a.temp+'°C']);
+  if(a.rul) sensors.push(['Remaining Useful Life',a.rul.toLocaleString()+' hrs']);
+  document.getElementById('panel-sensors').innerHTML=sensors.map(([l,v])=>`<div class="sensor-row"><span class="sensor-label">${l}</span><span class="sensor-value">${v}</span></div>`).join('');
+
+  if(a.rul){
+    const mc=a.rul<500?'var(--red)':a.rul<2000?'var(--yellow)':'var(--green)';
+    const pct=Math.min(100,a.rul/100);
+    document.getElementById('panel-rul-wrap').innerHTML=`<div style="font-size:10px;color:var(--muted);margin-bottom:5px">RUL Progress</div><div class="health-big-bar"><div class="health-big-fill" style="width:${pct}%;background:${mc}"></div></div>`;
+  } else {
+    document.getElementById('panel-rul-wrap').innerHTML='';
+  }
+
+  if(currentFloor!==a.floor){switchFloor(a.floor,{classList:{add:()=>{},remove:()=>{}}});}
+  document.querySelectorAll('.asset-hotspot').forEach(h=>h.classList.remove('sel'));
+  document.querySelectorAll('.asset-hotspot').forEach(h=>{if(h.textContent.includes(a.name))h.classList.add('sel');});
+
+  document.getElementById('asset-panel').classList.add('open');
+}
+function closePanel(){
+  document.getElementById('asset-panel').classList.remove('open');
+  document.querySelectorAll('.asset-hotspot').forEach(h=>h.classList.remove('sel'));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ENERGY
+// ═══════════════════════════════════════════════════════════════════════
+const metricCfg={
+  energy:{key:'energy',color:'var(--accent)',label:'kW'},
+  temp:{key:'temp',color:'var(--warm)',label:'°C'},
+  occ:{key:'occ',color:'var(--green)',label:'%'},
+  co2:{key:'co2',color:'var(--yellow)',label:'ppm'},
+};
+
+function switchMetric(m,btn){
+  currentMetric=m;
+  document.querySelectorAll('.metric-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderEnergyChart();
+}
+
+function renderEnergyChart(){
+  const cfg=metricCfg[currentMetric];
+  const vals=SENSOR_24H.map(d=>d[cfg.key]);
+  const max=Math.max(...vals)||1;
+  const chart=document.getElementById('energy-chart');
+  chart.innerHTML=SENSOR_24H.map((d,i)=>{
+    const pct=Math.round((d[cfg.key]/max)*100);
+    const bright=d[cfg.key]>max*.7?'CC':'66';
+    return`<div class="bar-wrap"><div class="bar" style="height:${pct}%;background:${cfg.color}${bright}" title="${d.h}:00 — ${d[cfg.key]} ${cfg.label}"></div></div>`;
+  }).join('');
+}
+
+function renderEnergyBreakdown(){
+  const items=[{l:'HVAC',v:42,c:'var(--accent)'},{l:'Lighting',v:28,c:'var(--yellow)'},{l:'IT Equipment',v:18,c:'var(--purple)'},{l:'Other',v:12,c:'var(--muted)'}];
+  document.getElementById('energy-breakdown').innerHTML=items.map(({l,v,c})=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:var(--muted)">${l}</span><span style="font-family:var(--mono);font-size:12px;color:${c};font-weight:700">${v}%</span></div><div class="health-bar"><div class="health-fill" style="width:${v}%;background:${c}"></div></div></div>`).join('');
+}
+
+function renderWeeklyCompare(){
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const thisW=[82,91,88,95,87,54,42];
+  const lastW=[78,85,90,88,82,48,38];
+  const maxV=Math.max(...thisW,...lastW);
+  document.getElementById('weekly-compare').innerHTML=days.map((d,i)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:10px;font-family:var(--mono);color:var(--muted);width:28px">${d}</span><div style="flex:1;height:14px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative"><div style="height:100%;width:${Math.round(lastW[i]/maxV*100)}%;background:var(--border2);border-radius:3px;position:absolute"></div><div style="height:100%;width:${Math.round(thisW[i]/maxV*100)}%;background:rgba(0,212,255,.55);border-radius:3px;position:absolute"></div></div><span style="font-size:10px;font-family:var(--mono);color:var(--accent);width:32px;text-align:right">${thisW[i]}kW</span></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// WORK ORDERS
+// ═══════════════════════════════════════════════════════════════════════
+function renderWorkOrders(){
+  const filters=['all','open','in-progress','urgent','completed'];
+  document.getElementById('wo-filters').innerHTML=filters.map(f=>`<button class="wo-filter${f===woFilter?' active':''}" onclick="setWOFilter('${f}',this)">${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('');
+
+  const filtered=woFilter==='all'?WORK_ORDERS:WORK_ORDERS.filter(w=>w.status===woFilter||w.priority===woFilter);
+  const prioColor={'urgent':'var(--red)','high':'var(--yellow)','normal':'var(--accent)','low':'var(--muted)'};
+  const statColor={'open':'var(--red)','in-progress':'var(--yellow)','scheduled':'var(--accent)','completed':'var(--green)'};
+
+  document.getElementById('wo-list').innerHTML=filtered.map(wo=>`<div class="wo-card">
+    <div>
+      <div class="wo-id">${wo.id} <span style="color:${prioColor[wo.priority]};margin-left:6px;font-size:9px;text-transform:uppercase">${wo.priority}</span></div>
+      <div class="wo-title">${wo.title}</div>
+      <div class="wo-meta">Asset: <span style="color:var(--accent)">${wo.asset}</span> · ${wo.assigned} · Due ${wo.due} · Est. ${wo.est}h</div>
+    </div>
+    <span class="badge" style="background:rgba(255,255,255,.04);color:${statColor[wo.status]};border:1px solid ${statColor[wo.status]}44">${wo.status.replace('-',' ')}</span>
+  </div>`).join('');
+}
+
+function setWOFilter(f,btn){
+  woFilter=f;
+  document.querySelectorAll('.wo-filter').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderWorkOrders();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// IoT ALERTS
+// ═══════════════════════════════════════════════════════════════════════
+function renderAlertRules(){
+  const sevColor={'urgent':'var(--red)','high':'var(--yellow)','normal':'var(--accent)','low':'var(--muted)'};
+  const list=document.getElementById('rules-list');
+  list.innerHTML='';
+  ALERT_RULES.forEach((r,i)=>{
+    const row=document.createElement('div');
+    row.className='rule-row';
+    row.innerHTML=`
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          ${r.triggered&&r.active?'<div class="triggered-dot"></div>':''}
+          <span style="font-size:13px;font-weight:600;color:var(--text)">${r.name}</span>
+          <span class="badge" style="background:${sevColor[r.severity]}18;color:${sevColor[r.severity]};border:1px solid ${sevColor[r.severity]}33">${r.severity}</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted)">Asset: <span style="color:var(--accent);font-family:var(--mono)">${r.asset}</span> · ${r.metric} ${r.op} ${r.threshold} · <span style="color:${r.triggered&&r.active?'var(--red)':'var(--green)'}">${r.triggered&&r.active?'TRIGGERED':'OK'}</span></div>
+      </div>
+      <div class="toggle${r.active?' on':''}" onclick="toggleRule(${i},this)"><div class="toggle-knob"></div></div>`;
+    list.appendChild(row);
+  });
+}
+
+function toggleRule(i,el){
+  ALERT_RULES[i].active=!ALERT_RULES[i].active;
+  el.classList.toggle('on');
+}
+
+function renderSensorLive(){
+  const sensors=[
+    {l:'Temp L2',v:'21.0°C',c:'var(--accent)',ok:true},{l:'Temp L3',v:'23.8°C',c:'var(--yellow)',ok:false},
+    {l:'CO₂ L1',v:'748 ppm',c:'var(--green)',ok:true},{l:'Humidity',v:'54%',c:'var(--accent)',ok:true},
+    {l:'Pressure',v:'101.3 kPa',c:'var(--green)',ok:true},{l:'Occupancy',v:'73%',c:'var(--yellow)',ok:true},
+  ];
+  document.getElementById('sensor-live-grid').innerHTML=sensors.map(s=>`<div class="sensor-live-card" style="border-left-color:${s.c}"><div style="font-size:9px;color:var(--muted);margin-bottom:3px">${s.l}</div><div style="font-family:var(--mono);font-weight:700;font-size:15px;color:${s.c}">${s.v}</div><div style="font-size:9px;color:${s.ok?'var(--green)':'var(--yellow)'}">${s.ok?'● Normal':'▲ Warning'}</div></div>`).join('');
+
+  // Simulate live updates
+  setInterval(()=>{
+    document.querySelectorAll('.sensor-live-card').forEach(card=>{
+      const val=card.querySelector('[style*="font-weight:700"]');
+      if(val&&val.textContent.includes('°C')){
+        const v=(parseFloat(val.textContent)+((Math.random()-.5)*.2)).toFixed(1);
+        val.textContent=v+'°C';
+      }
+    });
+  },3000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ML PREDICTIONS
+// ═══════════════════════════════════════════════════════════════════════
+function updateSlider(k,v){
+  mlVals[k]=parseFloat(v);
+  document.getElementById('v-'+k).textContent=v;
+}
+
+function runML(){
+  const btn=document.getElementById('ml-run-btn');
+  btn.disabled=true;btn.textContent='⟳ Running…';
+  setTimeout(()=>{
+    const rf=mlVals.vib/5*.4+Math.max(0,mlVals.temp-50)/50*.3+Math.min(mlVals.runtime/20000,1)*.3+(mlVals.current-5)/15*.1;
+    const risk=Math.min(1,Math.max(0,rf));
+    const rul=Math.max(50,Math.round(10000*(1-risk)+Math.random()*200-100));
+    const conf=+(0.86+Math.random()*.12).toFixed(2);
+    const anomalies=[];
+    if(mlVals.vib>3.5) anomalies.push('Elevated vibration: '+mlVals.vib+' g-rms');
+    if(mlVals.temp>75) anomalies.push('High operating temperature: '+mlVals.temp+'°C');
+    if(mlVals.runtime>18000) anomalies.push('High cumulative runtime: '+mlVals.runtime.toLocaleString()+' hrs');
+
+    const rc=risk>.7?'var(--red)':risk>.4?'var(--yellow)':'var(--green)';
+    const rec=risk>.85?'Immediate intervention required — failure risk critical':risk>.6?'Schedule maintenance within 2 weeks':risk>.35?'Monitor closely — plan next PM cycle':'Asset in good condition — continue normal operation';
+
+    document.getElementById('ml-output').innerHTML=`
+      <div class="ml-result-grid">
+        <div class="ml-result-card" style="border-top:2px solid ${rc}"><div class="ml-result-label">Predicted RUL</div><div class="ml-result-value" style="color:${rc}">${rul.toLocaleString()}</div><div class="ml-result-sub">hours remaining</div></div>
+        <div class="ml-result-card" style="border-top:2px solid ${rc}"><div class="ml-result-label">Risk Score</div><div class="ml-result-value" style="color:${rc}">${Math.round(risk*100)}%</div><div class="ml-result-sub">failure probability</div></div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;border:1px solid ${risk>.7?'var(--red)44':'var(--border)'}"><div style="font-size:9px;color:var(--dim);margin-bottom:4px">RECOMMENDATION</div><div style="font-size:12px;color:var(--text);line-height:1.5">${rec}</div></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:11px"><span style="color:var(--muted)">Model Confidence</span><span style="color:var(--green);font-family:var(--mono);font-weight:700">${Math.round(conf*100)}%</span></div>
+      <div class="health-bar"><div class="health-fill" style="width:${Math.round(conf*100)}%;background:var(--green)"></div></div>
+      ${anomalies.length?`<div style="margin-top:12px">${anomalies.map(a=>`<div class="anomaly-item">▲ ${a}</div>`).join('')}</div>`:''}
+      <div style="font-size:9px;color:var(--dim);margin-top:10px;font-family:var(--mono)">Model: GradientBoost v2.1.0 · Predicted ${new Date().toLocaleTimeString()}</div>`;
+
+    btn.disabled=false;btn.textContent='▶ Run Prediction';
+  },1400);
+}
+
+function renderRULTimeline(){
+  const assets=ASSETS.filter(a=>a.rul).sort((a,b)=>a.rul-b.rul);
+  const max=10000;
+  document.getElementById('rul-timeline').innerHTML=assets.map(a=>{
+    const pct=Math.min(100,Math.round(a.rul/max*100));
+    const c=a.rul<500?'var(--red)':a.rul<2000?'var(--yellow)':'var(--green)';
+    return`<div style="margin-bottom:10px;cursor:pointer" onclick="showAsset('${a.id}')"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><div style="display:flex;align-items:center;gap:6px"><span class="badge ${a.status==='critical'?'badge-crit':a.status==='warning'?'badge-warn':'badge-op'}" style="width:8px;height:8px;padding:0;border-radius:50%"></span><span style="font-size:12px;font-weight:600;color:var(--text)">${a.name}</span><span style="font-size:10px;color:var(--dim)">${a.type}</span></div><span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${c}">${a.rul.toLocaleString()} hrs</span></div><div class="health-bar" style="height:6px"><div class="health-fill" style="width:${pct}%;background:${c};box-shadow:0 0 6px ${c}66"></div></div></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXECUTIVE
+// ═══════════════════════════════════════════════════════════════════════
+function renderExecutive(){
+  const dist=[{l:'Excellent 90–100%',n:4,c:'var(--green)'},{l:'Good 70–89%',n:3,c:'var(--accent)'},{l:'Fair 40–69%',n:2,c:'var(--yellow)'},{l:'Critical <40%',n:1,c:'var(--red)'}];
+  document.getElementById('health-dist').innerHTML=dist.map(d=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:var(--muted)">${d.l}</span><span style="font-family:var(--mono);font-weight:700;color:${d.c}">${d.n}</span></div><div class="health-bar"><div class="health-fill" style="width:${d.n*10}%;background:${d.c}"></div></div></div>`).join('');
+
+  const months=['Jan','Feb','Mar','Apr','May'];
+  const spend=[22,18,31,25,14];
+  const max=Math.max(...spend);
+  document.getElementById('spend-chart').innerHTML=months.map((m,i)=>`<div class="spend-bar-row"><span class="spend-month">${m}</span><div class="spend-bar-bg"><div class="spend-bar-fill" style="width:${Math.round(spend[i]/max*100)}%"></div></div><span class="spend-val">$${spend[i]}K</span></div>`).join('');
+
+  const forecast=[
+    {name:'PUMP-02',risk:'Replace',due:'Now',c:'var(--red)'},
+    {name:'ELEV-01',risk:'Inspect',due:'Jun 1',c:'var(--yellow)'},
+    {name:'FCU-L3-02',risk:'Service',due:'Jun 5',c:'var(--yellow)'},
+    {name:'AHU-01',risk:'Filter',due:'Jul 12',c:'var(--accent)'},
+    {name:'BMS-CTRL',risk:'Update',due:'Sep 1',c:'var(--green)'},
+    {name:'GEN-01',risk:'Test',due:'Nov',c:'var(--green)'},
+  ];
+  document.getElementById('pm-forecast').innerHTML=forecast.map(f=>`<div class="forecast-item"><div style="width:8px;height:8px;border-radius:50%;background:${f.c};flex-shrink:0"></div><div class="forecast-name">${f.name}<span style="font-weight:400;color:var(--muted);margin-left:6px;font-size:11px">${f.risk}</span></div><div class="forecast-when" style="color:${f.c}">${f.due}</div></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// USERS
+// ═══════════════════════════════════════════════════════════════════════
+function renderUsers(){
+  document.getElementById('users-tbody').innerHTML=USERS.map(u=>`<tr>
+    <td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:${ROLE_COLORS[u.role]}22;border:1px solid ${ROLE_COLORS[u.role]}44;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:${ROLE_COLORS[u.role]}">${u.av}</div>${u.name}</div></td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${u.email}</td>
+    <td><span class="badge" style="background:${ROLE_COLORS[u.role]}18;color:${ROLE_COLORS[u.role]};border:1px solid ${ROLE_COLORS[u.role]}33">${u.role}</span></td>
+    <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${u.floors}</td>
+    <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${u.last}</td>
+    <td><span class="badge badge-op">Active</span></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ARCHITECTURE
+// ═══════════════════════════════════════════════════════════════════════
+function renderArch(){
+  const layers=[
+    {label:'Presentation Layer',color:'#00D4FF',items:['Web App (Next.js 15)','Mobile App (React Native)','AR/VR Interface','Admin Portal','Tenant Portal']},
+    {label:'API Gateway & Auth',color:'#00E87C',items:['REST / GraphQL API','WebSocket (real-time)','JWT + RBAC Auth','Rate Limiting','API Versioning']},
+    {label:'Core Services',color:'#FF5A28',items:['BIM Engine (APS / IFC.js)','Digital Twin Sync','Asset Registry','Work Order Engine','Analytics & ML','Predictive Maintenance']},
+    {label:'Integration Layer',color:'#FFB800',items:['IoT Hub (MQTT/AMQP)','BACnet/Modbus Gateway','ERP Connector','GIS / Mapping','CMMS Sync','APS / Autodesk Forge']},
+    {label:'Data Layer',color:'#9B6DFF',items:['Time-Series (InfluxDB)','Asset DB (PostgreSQL+PostGIS)','BIM Storage (IFC/RVT)','Doc Store (S3)','Cache (Redis)','Search (Elasticsearch)']},
+  ];
+  document.getElementById('arch-layers').innerHTML=layers.map((l,i)=>`<div class="arch-layer" style="--layer-color:${l.color};background:${l.color}08;border-color:${l.color}"><div class="arch-layer-title"><div style="width:6px;height:6px;border-radius:50%;background:${l.color}"></div>L${layers.length-i} · ${l.label}</div><div class="arch-items">${l.items.map(item=>`<span class="arch-chip">${item}</span>`).join('')}</div>${i<layers.length-1?`<div style="text-align:center;font-size:9px;color:var(--dim);margin-top:8px">↓ API Events / Streams / WebSocket ↓</div>`:''}</div>`).join('');
+
+  const stack=[['BIM Engine','Autodesk APS · IFC.js · xeokit'],['Frontend','Next.js 15 · React Native · Three.js'],['IoT Platform','AWS IoT Core · MQTT 5 · Node-RED'],['Time-Series DB','InfluxDB 2.x · TimescaleDB'],['Asset Database','PostgreSQL 16 + PostGIS'],['Messaging','RabbitMQ · Apache Kafka'],['Auth','Keycloak · Auth0 (RBAC/ABAC)'],['Deployment','Docker · Kubernetes · Helm'],['Observability','Grafana · Prometheus · Loki'],['AI / ML','Python · scikit-learn · FastAPI']];
+  document.getElementById('tech-stack').innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${stack.map(([k,v])=>`<div style="background:var(--bg);border-radius:var(--r);padding:8px 10px"><div style="font-size:9px;color:var(--dim);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">${k}</div><div style="font-size:11px;font-family:var(--mono);color:var(--accent)">${v}</div></div>`).join('')}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// BIM FILE LOADER
+// ═══════════════════════════════════════════════════════════════════════
+function loadBIMFile(input){
+  const file=input.files[0];if(!file)return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  const supported=['ifc','obj','glb','gltf','json','nwd','nwc','rvt'];
+  const status=document.getElementById('bim-status');
+
+  status.innerHTML='<span style="color:var(--accent)">⟳ Loading '+file.name+'…</span>';
+
+  setTimeout(()=>{
+    if(ext==='rvt'){
+      status.innerHTML='<span style="color:var(--yellow)">RVT loaded (demo render) · '+file.name+'</span>';
+      showBIMLoadedNotice(file.name,'Revit');
+    } else if(ext==='ifc'){
+      status.innerHTML='<span style="color:var(--green)">✓ IFC loaded · '+file.name+'</span>';
+      showBIMLoadedNotice(file.name,'IFC');
+    } else if(['glb','gltf','obj'].includes(ext)){
+      status.innerHTML='<span style="color:var(--green)">✓ 3D model loaded · '+file.name+'</span>';
+      showBIMLoadedNotice(file.name,'3D Model');
+    } else {
+      status.innerHTML='<span style="color:var(--muted)">✓ File registered · '+file.name+'</span>';
+    }
+    if(document.getElementById('page-viewer3d').classList.contains('active')){
+      document.getElementById('bim-drop-zone').style.display='none';
+    }
+  },1200);
+}
+
+function showBIMLoadedNotice(name,type){
+  const notice=document.createElement('div');
+  notice.style.cssText='position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--green);border-radius:var(--rl);padding:14px 18px;z-index:9999;font-size:12px;animation:slideIn .3s ease;max-width:300px';
+  notice.innerHTML=`<div style="color:var(--green);font-weight:700;margin-bottom:4px">✓ BIM File Loaded</div><div style="color:var(--text)">${name}</div><div style="color:var(--muted);font-size:10px;margin-top:4px">Type: ${type} · Linked to mock asset data</div>`;
+  document.body.appendChild(notice);
+  setTimeout(()=>notice.remove(),4000);
+}
+
+// drag-drop support
+document.addEventListener('DOMContentLoaded',()=>{
+  const dz=document.getElementById('drop-zone-inner');
+  if(dz){
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+    dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+    dz.addEventListener('drop',e=>{
+      e.preventDefault();dz.classList.remove('dragover');
+      const f=e.dataTransfer.files[0];
+      if(f){const inp=document.getElementById('bim-file-input');inp.files=e.dataTransfer.files;loadBIMFile(inp);}
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// 3D CANVAS VIEWER
+// ═══════════════════════════════════════════════════════════════════════
+function proj(x,y,z,W,H){
+  const cosY=Math.cos(viewer.rotY),sinY=Math.sin(viewer.rotY);
+  const x1=x*cosY+z*sinY,z1=-x*sinY+z*cosY;
+  const cosX=Math.cos(viewer.rotX),sinX=Math.sin(viewer.rotX);
+  const y1=y*cosX-z1*sinX,z2=y*sinX+z1*cosX;
+  const fov=4.5*viewer.zoom;
+  return[W/2+(x1/z2)*fov*(W/2*.55),H/2-(y1/z2)*fov*(H/2*.55),z2];
+}
+
+function startViewer(){
+  const c=document.getElementById('viewer-canvas');
+  if(!c)return;
+  c.width=c.offsetWidth;c.height=460;
+  if(animFrame) cancelAnimationFrame(animFrame);
+  drawViewer();
+
+  c.onmousedown=e=>{viewer.dragging=true;viewer.lx=e.offsetX;viewer.ly=e.offsetY;};
+  c.onmousemove=e=>{
+    const hit=getHit(e.offsetX,e.offsetY,c.width,c.height);
+    viewer.hovered=hit?.id||null;
+    c.style.cursor=hit?'pointer':viewer.dragging?'grabbing':'grab';
+    if(viewer.dragging){
+      viewer.rotY+=(e.offsetX-viewer.lx)*.008;
+      viewer.rotX+=(e.offsetY-viewer.ly)*.006;
+      viewer.rotX=Math.max(-1.2,Math.min(1.2,viewer.rotX));
+      viewer.lx=e.offsetX;viewer.ly=e.offsetY;
+    }
+  };
+  c.onmouseup=e=>{
+    if(viewer.dragging){viewer.dragging=false;}
+    const hit=getHit(e.offsetX,e.offsetY,c.width,c.height);
+    if(hit){
+      viewer.selected=hit.id;
+      showViewerAsset(hit);
+    }
+  };
+  c.onmouseleave=()=>{viewer.dragging=false;};
+  c.onwheel=e=>{e.preventDefault();viewer.zoom=Math.max(.4,Math.min(3,viewer.zoom-e.deltaY*.001));};
+  c.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
+}
+
+function getHit(mx,my,W,H){
+  let best=null,bestD=999;
+  ASSETS.forEach(a=>{
+    const[px,py]=proj(a.pos[0],a.pos[1],a.pos[2],W,H);
+    const d=Math.hypot(mx-px,my-py);
+    if(d<22&&d<bestD){bestD=d;best=a;}
+  });
+  return best;
+}
+
+function drawViewer(){
+  const c=document.getElementById('viewer-canvas');
+  if(!c){animFrame=null;return;}
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  viewer.frame++;
+
+  ctx.fillStyle='#04070F';ctx.fillRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle='#162030';ctx.lineWidth=.5;
+  for(let i=-4;i<=4;i++){
+    const[ax,ay]=proj(i,0,-4,W,H);const[bx,by]=proj(i,0,4,W,H);
+    const[cx2,cy2]=proj(-4,0,i,W,H);const[dx,dy]=proj(4,0,i,W,H);
+    ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx2,cy2);ctx.lineTo(dx,dy);ctx.stroke();
+  }
+
+  // Building floors
+  const flevels=[-0.8,0,0.8,1.6,2.4];
+  flevels.forEach(fy=>{
+    const corners=[[-2.5,fy,-1.5],[2.5,fy,-1.5],[2.5,fy,2],[-2.5,fy,2]];
+    ctx.strokeStyle='#1E304888';ctx.lineWidth=.8;
+    ctx.beginPath();
+    corners.forEach(([x,y,z],i)=>{const[px,py]=proj(x,y,z,W,H);i?ctx.lineTo(px,py):ctx.moveTo(px,py);});
+    ctx.closePath();ctx.stroke();
+  });
+
+  // Vertical edges
+  [[-2.5,-1.5],[2.5,-1.5],[-2.5,2],[2.5,2]].forEach(([ex,ez])=>{
+    const[ax,ay]=proj(ex,-0.8,ez,W,H);const[bx,by]=proj(ex,2.4,ez,W,H);
+    ctx.strokeStyle='#243850';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+  });
+
+  // Axes
+  [['X',[1,0,0],'#FF2D55'],['Y',[0,1,0],'#00E87C'],['Z',[0,0,1],'#00D4FF']].forEach(([lbl,[ax,ay,az],col])=>{
+    const[ox,oy]=proj(-3.5,-1,-3,W,H);const[ex,ey]=proj(-3.5+ax,-1+ay,-3+az,W,H);
+    ctx.strokeStyle=col;ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ex,ey);ctx.stroke();
+    ctx.fillStyle=col;ctx.font='bold 10px monospace';ctx.textAlign='left';ctx.fillText(lbl,ex+3,ey+4);
+  });
+
+  // Assets sorted by depth
+  const sorted=ASSETS.map(a=>{const[px,py,pz]=proj(a.pos[0],a.pos[1],a.pos[2],W,H);return{a,px,py,pz};}).sort((a,b)=>b.pz-a.pz);
+  const statusCols={operational:'#00E87C',warning:'#FFB800',critical:'#FF2D55',standby:'#4A6A88'};
+  const typeIcons={HVAC:'◈',Elevator:'⊡',Cooling:'❄',Plumbing:'⊙',Power:'⚡',Safety:'⊛',Controls:'⬡'};
+  const pulse=Math.sin(viewer.frame*.1)*.3+.7;
+
+  sorted.forEach(({a,px,py})=>{
+    const isSel=viewer.selected===a.id,isHov=viewer.hovered===a.id;
+    const col=statusCols[a.status]||'#4A6A88';
+    const sz=isSel?28:isHov?24:20;
+
+    // Shadow to grid
+    const[gx,gy]=proj(a.pos[0],0,a.pos[2],W,H);
+    ctx.strokeStyle=col+'33';ctx.lineWidth=.5;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(gx,gy);ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Glow
+    if(isSel||a.status==='critical'){
+      const g=ctx.createRadialGradient(px,py,0,px,py,sz*2.5);
+      g.addColorStop(0,col+(isSel?'44':'22'));g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,sz*2.5,0,Math.PI*2);ctx.fill();
+    }
+
+    // Box
+    ctx.fillStyle=isSel?col:(isHov?col+'44':col+'22');
+    ctx.strokeStyle=col;ctx.lineWidth=isSel?2:1.2;
+    const r2=5,x0=px-sz/2,y0=py-sz/2;
+    ctx.beginPath();ctx.roundRect(x0,y0,sz,sz,r2);ctx.fill();ctx.stroke();
+
+    // Icon
+    ctx.fillStyle=isSel?'#04070F':col;
+    ctx.font=`bold ${isSel?12:10}px sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(typeIcons[a.type]||'●',px,py);
+
+    // Label
+    ctx.fillStyle=isHov||isSel?'#D8EEFF':col;
+    ctx.font=`${isSel?'bold ':' '}10px monospace`;
+    ctx.textBaseline='top';ctx.fillText(a.name,px,py+sz/2+4);
+
+    // Critical pulse dot
+    if(a.status==='critical'){
+      ctx.fillStyle=`rgba(255,45,85,${pulse})`;
+      ctx.beginPath();ctx.arc(px+sz/2-4,py-sz/2+4,4,0,Math.PI*2);ctx.fill();
+    }
+
+    // Wireframe mode additional edges
+    if(wireframe&&!isSel){
+      ctx.strokeStyle=col+'44';ctx.lineWidth=.5;
+      ctx.strokeRect(x0,y0,sz,sz);
+    }
+  });
+
+  // HUD
+  ctx.fillStyle='#1E3450';ctx.font='9px monospace';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText(`3D BIM VIEW · ROT(${viewer.rotY.toFixed(2)}, ${viewer.rotX.toFixed(2)}) · ZOOM ${viewer.zoom.toFixed(1)}x · ASSETS: ${ASSETS.length}`,12,12);
+  ctx.textAlign='right';ctx.fillText('TWINCORE BIM ENGINE v2.1',W-12,12);
+
+  animFrame=requestAnimationFrame(drawViewer);
+}
+
+function set3DView(rx,ry,z){viewer.rotX=rx;viewer.rotY=ry;viewer.zoom=z;}
+function resetViewer(){viewer.rotX=.4;viewer.rotY=.5;viewer.zoom=1;viewer.selected=null;document.getElementById('viewer-asset-card').style.display='none';}
+function toggleWireframe(){wireframe=!wireframe;document.getElementById('wire-btn').style.color=wireframe?'var(--accent)':'var(--muted)';}
+
+function showViewerAsset(a){
+  const card=document.getElementById('viewer-asset-card');
+  document.getElementById('viewer-asset-name').textContent=a.name+' — '+a.type;
+  document.getElementById('viewer-asset-grid').innerHTML=[
+    ['Brand',a.brand],['Model',a.model],['Installed',a.yr],['Floor',a.floor],
+    ['Health',a.health+'%'],['RUL',a.rul?a.rul.toLocaleString()+' hrs':'—']
+  ].map(([k,v])=>`<div class="panel-field"><div class="panel-field-label">${k}</div><div class="panel-field-value">${v}</div></div>`).join('');
+  card.style.display='block';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// LIVE SENSOR SIMULATION
+// ═══════════════════════════════════════════════════════════════════════
+setInterval(()=>{
+  // Simulate slight sensor drift in SENSOR_24H for charts
+  SENSOR_24H.forEach(d=>{
+    d.energy=Math.max(10,Math.min(100,d.energy+(Math.random()-.5)*.5));
+    d.temp=Math.max(15,Math.min(30,d.temp+(Math.random()-.5)*.2));
+    d.co2=Math.max(380,Math.min(900,d.co2+(Math.random()-.5)*5));
+  });
+  if(document.getElementById('page-energy').classList.contains('active')) renderEnergyChart();
+},5000);
+
+</script>
+</body>
+</html>
